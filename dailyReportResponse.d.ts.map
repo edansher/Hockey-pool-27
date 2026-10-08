@@ -1,0 +1,1 @@
+{"version":3,"file":"dailyReportResponse.d.ts","sourceRoot":"","sources":["../../../src/generated/types/dailyReportResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,eAAe,CAAC;AACjD,OAAO,KAAK,EAAE,yBAAyB,EAAE,MAAM,6BAA6B,CAAC;AAE7E,MAAM,WAAW,mBAAmB;IAClC,MAAM,EAAE,yBAAyB,CAAC;IAClC,OAAO,EAAE,MAAM,CAAC;IAChB,MAAM,EAAE,WAAW,GAAG,IAAI,CAAC;CAC5B"}
