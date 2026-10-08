@@ -6,14 +6,18 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "db:push": "pnpm --filter @workspace/db run push",
+    "db:seed": "tsx artifacts/api-server/src/scripts/seed-rosters.ts",
+    "test": "tsx --test --test-concurrency=1 'artifacts/api-server/src/**/*.test.ts' 'artifacts/hockey-pool/src/**/*.test.ts' 'lib/pool-calendar/tests/*.test.ts' 'lib/api-client-react/src/**/*.test.ts' 'lib/api-client-react/src/**/*.test.mjs' 'lib/api-client-react/test/*.test.ts' 'lib/api-client-react/tests/*.test.ts'",
+    "build:web": "pnpm --filter @workspace/hockey-pool run build",
+    "build:api": "pnpm --filter @workspace/api-server run build",
+    "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs"
   },
   "private": true,
-  "dependencies": {
-    "@replit/connectors-sdk": "^0.4.3"
-  },
   "devDependencies": {
     "prettier": "^3.9.6",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "tsx": "catalog:"
   }
 }

@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@layer theme, base, clerk, components, utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 42 31% 95%;
+  --foreground: 210 35% 17%;
+  --border: 39 19% 84%;
+  --input: 39 19% 84%;
+  --card: 42 34% 98%;
+  --card-foreground: 210 35% 17%;
+  --card-border: 39 19% 84%;
+  --popover: 42 34% 98%;
+  --popover-foreground: 210 35% 17%;
+  --primary: 197 65% 27%;
+  --primary-foreground: 42 35% 97%;
+  --secondary: 43 28% 89%;
+  --secondary-foreground: 210 34% 20%;
+  --muted: 42 24% 91%;
+  --muted-foreground: 210 15% 47%;
+  --accent: 15 68% 52%;
+  --accent-foreground: 42 35% 97%;
+  --destructive: 4 61% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 197 65% 27%;
+  --chart-1: 197 65% 27%;
+  --chart-2: 15 68% 52%;
+  --chart-3: 153 30% 43%;
+  --chart-4: 39 70% 55%;
+  --chart-5: 210 19% 47%;
+  --sidebar: 210 37% 18%;
+  --sidebar-foreground: 42 27% 91%;
+  --sidebar-border: 210 28% 27%;
+  --sidebar-primary: 15 68% 56%;
+  --sidebar-primary-foreground: 42 35% 97%;
+  --sidebar-accent: 210 31% 25%;
+  --sidebar-accent-foreground: 42 27% 91%;
+  --sidebar-ring: 15 68% 56%;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: 'IBM Plex Mono', monospace;
+  --radius: 0.75rem;
+  --button-outline: rgba(30, 49, 63, .12);
+  --badge-outline: rgba(30, 49, 63, .08);
+  --opaque-button-border-intensity: -8;
+  --elevate-1: rgba(30, 49, 63, .04);
+  --elevate-2: rgba(30, 49, 63, .08);
+  --tracking-normal: 0em;
+  --spacing: .25rem;
+}
+.dark {
+  --background: 210 35% 12%; --foreground: 42 28% 92%; --border: 210 23% 27%; --input: 210 23% 27%;
+  --card: 210 31% 16%; --card-foreground: 42 28% 92%; --card-border: 210 23% 27%;
+  --popover: 210 31% 16%; --popover-foreground: 42 28% 92%; --primary: 190 55% 48%;
+  --primary-foreground: 210 35% 12%; --secondary: 210 25% 22%; --secondary-foreground: 42 28% 92%;
+  --muted: 210 25% 22%; --muted-foreground: 210 12% 67%; --accent: 15 68% 57%;
+  --accent-foreground: 210 35% 12%; --destructive: 4 61% 52%; --destructive-foreground: 0 0% 100%;
+  --ring: 190 55% 48%; --chart-1: 190 55% 48%; --chart-2: 15 68% 57%; --chart-3: 153 30% 53%;
+  --chart-4: 39 70% 62%; --chart-5: 210 19% 65%; --sidebar: 210 39% 10%;
+  --sidebar-foreground: 42 28% 92%; --sidebar-border: 210 23% 20%; --sidebar-primary: 15 68% 57%;
+  --sidebar-primary-foreground: 210 35% 12%; --sidebar-accent: 210 31% 18%; --sidebar-accent-foreground: 42 28% 92%;
+  --sidebar-ring: 15 68% 57%; --button-outline: rgba(255,255,255,.12); --badge-outline: rgba(255,255,255,.08);
+  --opaque-button-border-intensity: 9; --elevate-1: rgba(255,255,255,.04); --elevate-2: rgba(255,255,255,.09);
+}
+@layer base {
+  * { @apply border-border; }
+  body { @apply font-sans antialiased bg-background text-foreground; margin: 0; }
+}
+.display { font-family: 'Barlow Condensed', sans-serif; letter-spacing: -.025em; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.grain:before { content:''; position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.12; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.14'/%3E%3C/svg%3E"); }
+.page-in { animation: page-in .38s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes page-in { from { opacity:0; transform:translateY(7px) } to { opacity:1; transform:translateY(0) } }
+.live-dot { animation: live-pulse 2s ease-out infinite; }
+@keyframes live-pulse { 0% { box-shadow:0 0 0 0 rgba(207,86,51,.5) } 80%,100% { box-shadow:0 0 0 7px rgba(207,86,51,0) } }
+.cl-formFieldInput::placeholder { color:#81909a; opacity:1; }
