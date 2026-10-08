@@ -1,0 +1,1607 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Hockey Pool API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: pool
+  - name: players
+  - name: transactions
+  - name: admin
+  - name: public
+  - name: draft
+paths:
+  /poll/daily:
+    get:
+      operationId: getDailyPoolPolls
+      tags: [pool]
+      responses:
+        "200":
+          description: Today and yesterday in Toronto, with participant voting state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyPoolPolls"
+  /poll/popup:
+    post:
+      operationId: claimPoolPollPopup
+      tags: [pool]
+      responses:
+        "200":
+          description: Atomically reserve the one-time popup for this participant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [poll]
+                properties:
+                  poll:
+                    anyOf:
+                      - $ref: "#/components/schemas/PoolPoll"
+                      - type: "null"
+  /poll/admin:
+    get:
+      operationId: getAdminPoolPolls
+      tags: [admin]
+      responses:
+        "200":
+          description: Administrator-only drafts and saved polls
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [polls]
+                properties:
+                  polls:
+                    type: array
+                    items: { $ref: "#/components/schemas/PoolPoll" }
+  /poll/admin/drafts:
+    post:
+      operationId: savePoolPollDraft
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PoolPollDraft" }
+      responses:
+        "200":
+          description: Saved draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PoolPoll" }
+  /poll/admin/preview:
+    post:
+      operationId: previewPoolPoll
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PoolPollDraft" }
+      responses:
+        "200":
+          description: Admin-only unsaved preview; no participant visibility
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PoolPoll" }
+  /poll/admin/edit:
+    post:
+      operationId: updatePoolPoll
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PoolPollDraft" }
+      responses:
+        "200":
+          description: Updated poll; saved votes and publication date preserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PoolPoll" }
+  /poll/admin/delete:
+    post:
+      operationId: deletePoolPoll
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PoolPollRemoval" }
+      responses:
+        "200":
+          description: Poll removed from participant and administrator views
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PoolPollRemovalResult" }
+  /poll/admin/publish:
+    post:
+      operationId: publishPoolPoll
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PoolPollPublication"
+      responses:
+        "200":
+          description: Published poll, idempotent on retries, one per Toronto day
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PoolPoll" }
+  /poll:
+    get:
+      operationId: getPoolPoll
+      tags: [pool]
+      summary: Current participant poll and live anonymous aggregate results
+      responses:
+        "200":
+          description: Poll, current results, and the signed-in participant's voting state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoolPoll"
+  /poll/votes:
+    post:
+      operationId: submitPoolPoll
+      tags: [pool]
+      summary: Submit one complete response per verified linked participant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PoolPollSubmission"
+      responses:
+        "200":
+          description: Saved response and current results; duplicate submissions return the original response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoolPoll"
+        "400":
+          description: Incomplete or invalid answers
+        "401":
+          description: Sign-in required
+        "403":
+          description: Verified linked participant required
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /nhl-source:
+    get:
+      operationId: getNhlSource
+      tags: [pool]
+      summary: Official NHL scores and source refresh status
+      description: Server refreshes official NHL scores and eligible game statistics every five minutes. Returns persisted source facts, not calculated pool points. Failed updates retain the last successful snapshot and explicitly mark it stale.
+      responses:
+        "200":
+          description: Source lifecycle and actual current/previous Toronto-day games
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NhlSourceSnapshot"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [pool]
+      summary: Current pool dashboard
+      responses:
+        "200":
+          description: Dashboard and pool status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /pool-scoring:
+    get:
+      operationId: getPoolScoring
+      tags: [pool]
+      summary: Persisted live NHL-to-pool scoring snapshot
+      description: Returns stable owner/round rows for the 2026–27 regular season. Statistics are derived from official NHL gamecenter boxscores and play-by-play using the persisted current pool scoring rules. Incomplete source coverage is explicitly represented; unavailable values are null, never inferred zeroes.
+      responses:
+        "200":
+          description: Pool scoring rows and official source coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoolScoringSnapshot"
+  /pool-injuries:
+    get:
+      operationId: getPoolInjuries
+      tags: [pool]
+      summary: Current NHL injury reports for all identified pool players
+      description: Refreshed daily at 8 AM America/Toronto from official NHL sources. Unknown identities and unreported injuries remain explicit; absence and roster activity are not injury evidence.
+      responses:
+        "200":
+          description: Injury snapshot and source refresh status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PoolInjurySnapshot"
+  /standings:
+    get:
+      operationId: getStandings
+      tags: [pool]
+      summary: Standings for the current or selected Toronto calendar date
+      parameters:
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Current or requested standings with explicit scoring availability; unknown totals are null, never invented zeroes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StandingsSnapshot"
+  /owners:
+    get:
+      operationId: getOwners
+      tags: [pool]
+      summary: List pool owners and current summary totals
+      responses:
+        "200":
+          description: Pool owners
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OwnerStanding" }
+  /draft-rosters:
+    get:
+      operationId: getDraftRosters
+      tags: [draft]
+      summary: Imported original draft-board selections
+      responses:
+        "200":
+          description: Persisted draft rosters with original source labels
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DraftRoster" }
+  /owners/{ownerId}:
+    get:
+      operationId: getOwner
+      tags: [pool]
+      summary: Owner roster and season summary
+      parameters:
+        - in: path
+          name: ownerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Owner and roster
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnerDetail" }
+        "404": { description: Owner not found }
+  /players:
+    get:
+      operationId: getPlayers
+      tags: [players]
+      summary: Search the NHL player pool, including undrafted players
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: team
+          schema: { type: string }
+        - in: query
+          name: position
+          schema: { type: string, enum: [F, D, G] }
+        - in: query
+          name: available
+          schema: { type: boolean }
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [name, team, position, gamesPlayed, poolPoints, goals, assists, lastGamePoints]
+        - in: query
+          name: direction
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        "200":
+          description: Filtered player records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlayerSummary" }
+  /available-players:
+    get:
+      operationId: getAvailablePlayers
+      tags: [players]
+      summary: All undrafted NHL players ranked by current pool scoring rules
+      description: Includes individual skaters and goalies. Points are calculated from verified per-game NHL facts using the currently saved pool scoring rules; incomplete rows are ranked by known points and explicitly marked.
+      responses:
+        "200":
+          description: Available NHL player catalog and scoring coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailablePlayersSnapshot"
+  /players/{playerId}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Player profile, game log, ownership and transaction history
+      parameters:
+        - in: path
+          name: playerId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Player profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerProfile" }
+        "404": { description: Player not found }
+  /transaction-access:
+    get:
+      operationId: getTransactionAccess
+      tags: [transactions]
+      summary: Current verified account's authorized rosters and active skaters, without email mappings
+      responses:
+        "200":
+          description: Private account access
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionAccess" }
+  /transaction-summary:
+    get:
+      operationId: getTransactionSummary
+      tags: [transactions]
+      summary: Backend-calculated pool earnings and participant transaction counters
+      responses:
+        "200":
+          description: Pool transaction accounting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionSummary" }
+  /admin/transactions/{id}/payment:
+    patch:
+      operationId: updateTransactionPayment
+      tags: [admin]
+      summary: Administrator records or corrects receipt of a completed drop fee
+      security: [{ clerkSession: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransactionPaymentUpdate" }
+      responses:
+        "200":
+          description: Saved transaction payment status; swap details are unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+        "400": { description: Invalid payment status }
+        "401": { description: Sign-in required }
+        "403": { description: Verified pool administrator required }
+        "404": { description: Transaction not found }
+  /transactions:
+    get:
+      operationId: getTransactions
+      tags: [transactions]
+      summary: Immutable transaction history
+      responses:
+        "200":
+          description: Transaction ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Transaction" }
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Atomically record a skater drop/pickup; goalies cannot be dropped or traded
+      security: [{ clerkSession: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: Reuse this key for retries; one key can record only one swap and one charge.
+          schema: { type: string, minLength: 8, maxLength: 100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransactionInput" }
+      responses:
+        "201":
+          description: Transaction committed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+        "400": { description: Invalid input or forbidden goalie transaction }
+        "401": { description: Sign-in required }
+        "403": { description: Verified linked participant may act only for its own roster; administrators retain all-roster access }
+        "409": { description: "Transaction limit, availability, or roster rule violated" }
+        "503": { description: Verified scoring unavailable; retry safely with the same request key }
+  /transactions/preview:
+    post:
+      operationId: previewTransaction
+      tags: [pool]
+      security: [{ clerkSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransactionInput" }
+      responses:
+        "200":
+          description: Server-verified transaction and game eligibility
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionPreview" }
+        "403": { description: Linked roster required }
+        "409": { description: Roster or availability changed }
+  /auth/config:
+    get:
+      operationId: getAuthConfig
+      tags: [pool]
+      responses:
+        "200":
+          description: Public authentication configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publishableKey: { type: string }
+                required: [publishableKey]
+  /admin/manage:
+    get:
+      operationId: getAdminManagement
+      tags: [admin]
+      security: [{ clerkSession: [] }]
+      responses:
+        "200":
+          description: Private administrator accounts, rosters, transactions and audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts: { type: array, items: { type: object, additionalProperties: true } }
+                  rosters: { type: array, items: { $ref: "#/components/schemas/DraftRoster" } }
+                  transactions: { type: array, items: { $ref: "#/components/schemas/Transaction" } }
+                  audit: { type: array, items: { type: object, additionalProperties: true } }
+                required: [accounts, rosters, transactions, audit]
+        "403": { description: Administrator required }
+    post:
+      operationId: managePool
+      tags: [admin]
+      security: [{ clerkSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PoolManagementInput" }
+      responses:
+        "200":
+          description: Saved operation; refresh all affected views
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "400": { description: Invalid correction }
+        "403": { description: Administrator required }
+        "409": { description: Conflicting correction; nothing saved }
+  /scoring-rules:
+    get:
+      operationId: getScoringRules
+      tags: [pool]
+      summary: Current pool scoring rules
+      responses:
+        "200":
+          description: Scoring configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScoringRules" }
+    patch:
+      operationId: updateScoringRules
+      tags: [admin]
+      summary: Admin-only scoring-rule update with revision protection
+      security: [{ clerkSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScoringRulesUpdate" }
+      responses:
+        "200":
+          description: Updated scoring rules
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScoringRules" }
+        "401": { description: Sign in required }
+        "403": { description: Administrator access required }
+        "400": { description: Invalid scoring rules }
+        "409": { description: Rules changed or an ownership cutoff cannot be safely repriced }
+  /import-review:
+    get:
+      operationId: getImportReview
+      tags: [admin]
+      summary: Opening roster import matches and unresolved selections
+      security: [{ clerkSession: [] }]
+      responses:
+        "200":
+          description: Draft board import review
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ImportSelection" }
+        "403": { description: Administrator access required }
+  /import-review/{selectionId}:
+    patch:
+      operationId: updateImportSelection
+      tags: [admin]
+      summary: Confirm or correct one opening selection
+      security: [{ clerkSession: [] }]
+      parameters:
+        - in: path
+          name: selectionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportSelectionUpdate" }
+      responses:
+        "200":
+          description: Updated import selection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportSelection" }
+        "403": { description: Administrator access required }
+        "404": { description: Selection not found }
+  /admin/reports/health:
+    get:
+      operationId: getDailyReportHealth
+      tags: [pool]
+      summary: Private administrator morning report health, including database outages
+      responses:
+        "200":
+          description: Current publication health; unknown timestamps are explicitly null
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailyReportHealth" }
+        "401": { description: Sign-in required }
+        "403": { description: Administrator access required }
+  /reports:
+    get:
+      operationId: getDailyReportHistory
+      tags: [pool]
+      summary: Saved published daily reports, newest first
+      responses:
+        "200":
+          description: Published report history
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DailyReportHistoryItem" } }
+  /reports/{date}:
+    get:
+      operationId: getPublishedDailyReport
+      tags: [pool]
+      summary: Daily report by publication date in Toronto
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Saved report or explicit waiting status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailyReportResponse" }
+        "400": { description: Invalid date }
+  /analysis/{date}:
+    get:
+      operationId: getDailyAnalysis
+      tags: [pool]
+      summary: Verified daily pool analysis for a Toronto calendar date
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Daily analysis and scoring detail, including explicit pending or unavailable source status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailyAnalysis" }
+        "400": { description: Invalid YYYY-MM-DD calendar date }
+  /daily-scoring/{date}:
+    get:
+      operationId: getDailyScoring
+      tags: [pool]
+      summary: Sortable player scoring rows for a Toronto calendar date
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Verified player-by-player score breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DailyScoringRow" }
+        "400": { description: Invalid YYYY-MM-DD calendar date }
+        "503": { description: Official scoring source is unavailable; no scoring or zero-point result can be inferred }
+  /shares:
+    post:
+      operationId: createShare
+      tags: [public]
+      summary: Create a read-only share link for a supported pool view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShareInput" }
+      responses:
+        "201":
+          description: Share link
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShareLink" }
+  /public/{shareId}:
+    get:
+      operationId: getPublicShare
+      tags: [public]
+      summary: Public read-only shared pool view
+      parameters:
+        - in: path
+          name: shareId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Shared view; contains no administrative actions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicShare" }
+        "404": { description: Share link not found }
+  /admin/access:
+    get:
+      operationId: getAdminAccess
+      tags: [admin]
+      summary: Check whether the signed-in account is authorized to administer this pool
+      security: [{ clerkSession: [] }]
+      responses:
+        "200":
+          description: Authorization result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccess" }
+  /admin/participant-emails:
+    get:
+      operationId: getAdminParticipantEmails
+      tags: [admin]
+      summary: Private participant email directory for the verified pool administrator
+      security: [{ clerkSession: [] }]
+      responses:
+        "200":
+          description: Configured backend account links, not account creation or verification status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminParticipantEmail" }
+        "401": { description: Sign-in required }
+        "403": { description: Verified pool administrator required }
+  /participant/access:
+    get:
+      operationId: getParticipantAccess
+      tags: [participants]
+      summary: Check the signed-in account's verified roster link and admin status
+      security: [{ clerkSession: [] }]
+      responses:
+        "200":
+          description: Private account access result; no participant email directory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParticipantAccess" }
+components:
+  securitySchemes:
+    clerkSession:
+      type: http
+      scheme: cookie
+  schemas:
+    PoolPollAnswers:
+      type: object
+      additionalProperties: { type: string }
+    PoolPollDraft:
+      type: object
+      required: [title, questions]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        questions:
+          type: array
+          items:
+            type: object
+            required: [id, prompt, options]
+            properties:
+              id: { type: string }
+              prompt: { type: string }
+              options:
+                type: array
+                items:
+                  type: object
+                  required: [id, label]
+                  properties:
+                    id: { type: string }
+                    label: { type: string }
+    PoolPollPublication:
+      type: object
+      required: [pollId]
+      properties:
+        pollId: { type: string }
+    PoolPollRemoval:
+      type: object
+      required: [pollId]
+      properties:
+        pollId: { type: string }
+    PoolPollRemovalResult:
+      type: object
+      required: [pollId, deleted]
+      properties:
+        pollId: { type: string }
+        deleted: { type: boolean }
+    PoolPollParticipant:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+    DailyPoolPolls:
+      type: object
+      required: [today, yesterday, serverNow, rollsOverAt, polls]
+      properties:
+        today: { type: string }
+        yesterday: { type: string }
+        serverNow: { type: string }
+        rollsOverAt: { type: string }
+        polls:
+          type: array
+          items: { $ref: "#/components/schemas/PoolPoll" }
+    PoolPollSubmission:
+      type: object
+      additionalProperties: false
+      required: [pollId, answers]
+      properties:
+        pollId:
+          type: string
+        answers:
+          $ref: "#/components/schemas/PoolPollAnswers"
+    PoolPoll:
+      type: object
+      required: [id, title, questions, respondentCount, canVote, hasVoted, myAnswers, participants, structureLocked]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        publicationDate: { type: ["string", "null"] }
+        publishedAt: { type: ["string", "null"] }
+        closesAt: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, published] }
+        isOpen: { type: boolean }
+        popupViewed: { type: boolean }
+        eligibleParticipantCount: { type: integer }
+        legacy: { type: boolean }
+        respondentCount:
+          type: integer
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/PoolPollParticipant" }
+        structureLocked:
+          type: boolean
+        canVote:
+          type: boolean
+        hasVoted:
+          type: boolean
+        myAnswers:
+          anyOf:
+            - $ref: "#/components/schemas/PoolPollAnswers"
+            - type: "null"
+        questions:
+          type: array
+          items:
+            type: object
+            required: [id, prompt, options]
+            properties:
+              id:
+                type: string
+              prompt:
+                type: string
+              options:
+                type: array
+                items:
+                  type: object
+                  required: [id, label, votes, percentage]
+                  properties:
+                    id:
+                      type: string
+                    label:
+                      type: string
+                    votes:
+                      type: integer
+                    percentage:
+                      type: number
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string }
+      required: [status]
+    OwnerStanding:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        rank: { type: ["integer", "null"] }
+        previousRank: { type: ["integer", "null"] }
+        rankMovement: { type: integer }
+        seasonPoints: { type: number }
+        yesterdayPoints: { type: number }
+        livePoints: { type: number }
+        gamesPlayed: { type: integer }
+        pointsPerGame: { type: number }
+        transactionsUsed: { type: integer }
+        rosterComplete: { type: boolean }
+      required: [id, name, rank, previousRank, rankMovement, seasonPoints, yesterdayPoints, livePoints, gamesPlayed, pointsPerGame, transactionsUsed, rosterComplete]
+    StandingsSnapshot:
+      type: object
+      properties:
+        status: { type: string, enum: [unavailable, partial, available] }
+        reason: { type: ["string", "null"] }
+        asOf: { type: ["string", "null"], format: date-time }
+        date: { type: ["string", "null"], format: date }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/PoolStanding" }
+      required: [status, reason, asOf, date, rows]
+    PoolScoringSnapshot:
+      type: object
+      properties:
+        status: { type: string, enum: [available, partial, unavailable, stale] }
+        reason: { type: ["string", "null"] }
+        asOf: { type: ["string", "null"], format: date-time }
+        season: { type: integer, enum: [20262027] }
+        coverageThroughDate: { type: ["string", "null"], format: date }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/PoolScoringRow" }
+      required: [status, reason, asOf, season, coverageThroughDate, rows]
+    PoolScoringRow:
+      type: object
+      properties:
+        seasonPoolPoints: { type: ["number", "null"], description: Reference-only full-season points, separate from ownership credits }
+        ownerId: { type: string }
+        round: { type: integer }
+        assetType: { type: string, enum: [skater, goalieTeam, goalie] }
+        nhlPlayerId: { type: ["integer", "null"] }
+        goals: { type: ["integer", "null"] }
+        assists: { type: ["integer", "null"] }
+        powerPlayGoals: { type: ["integer", "null"] }
+        shortHandedGoals: { type: ["integer", "null"] }
+        overtimeGoals: { type: ["integer", "null"] }
+        poolPoints: { type: ["number", "null"] }
+        gamesPlayed: { type: ["integer", "null"] }
+        wins: { type: ["integer", "null"] }
+        shutouts: { type: ["integer", "null"] }
+      required: [ownerId, round, assetType, nhlPlayerId, goals, assists, powerPlayGoals, shortHandedGoals, overtimeGoals, poolPoints, gamesPlayed, wins, shutouts]
+    AvailablePlayersSnapshot:
+      type: object
+      properties:
+        status: { type: string, enum: [available, partial, stale, unavailable] }
+        reason: { type: ["string", "null"] }
+        asOf: { type: ["string", "null"], format: date-time }
+        lastCatalogRefreshAt: { type: ["string", "null"], format: date-time }
+        nextRefreshAt: { type: ["string", "null"], format: date-time }
+        season: { type: integer, enum: [20262027] }
+        coverageThroughDate: { type: ["string", "null"], format: date }
+        totalNhlPlayers: { type: integer }
+        ownedPlayersExcluded: { type: integer }
+        catalogTeamsCovered: { type: integer }
+        catalogTeamsTotal: { type: integer, enum: [32] }
+        rows:
+          type: array
+          items: { $ref: "#/components/schemas/AvailablePlayer" }
+      required: [status, reason, asOf, lastCatalogRefreshAt, nextRefreshAt, season, coverageThroughDate, totalNhlPlayers, ownedPlayersExcluded, catalogTeamsCovered, catalogTeamsTotal, rows]
+    AvailablePlayer:
+      type: object
+      properties:
+        nhlPlayerId: { type: integer }
+        name: { type: string }
+        team: { type: ["string", "null"] }
+        position: { type: string, enum: [F, C, D, G] }
+        goals: { type: ["integer", "null"] }
+        assists: { type: ["integer", "null"] }
+        powerPlayGoals: { type: ["integer", "null"] }
+        shortHandedGoals: { type: ["integer", "null"] }
+        overtimeGoals: { type: ["integer", "null"] }
+        poolPoints: { type: ["integer", "null"] }
+        gamesPlayed: { type: ["integer", "null"] }
+        wins: { type: ["integer", "null"] }
+        shutouts: { type: ["integer", "null"] }
+        scoringStatus: { type: string, enum: [complete, partial, pending] }
+        reason: { type: ["string", "null"] }
+      required: [nhlPlayerId, name, team, position, goals, assists, powerPlayGoals, shortHandedGoals, overtimeGoals, poolPoints, gamesPlayed, wins, shutouts, scoringStatus, reason]
+    PoolPlayerInjury:
+      type: object
+      properties:
+        nhlPlayerId: { type: integer }
+        name: { type: string }
+        team: { type: ["string", "null"] }
+        status: { type: string, enum: [injured, not_reported_injured, unknown] }
+        details: { type: ["string", "null"] }
+        sourceUrl: { type: ["string", "null"], format: uri }
+        reportedAt: { type: ["string", "null"], format: date-time }
+        checkedAt: { type: ["string", "null"], format: date-time }
+      required: [nhlPlayerId, name, team, status, details, sourceUrl, reportedAt, checkedAt]
+    PoolInjurySnapshot:
+      type: object
+      properties:
+        status: { type: string, enum: [available, partial, stale, unavailable, refreshing] }
+        lastCheckedAt: { type: ["string", "null"], format: date-time }
+        lastSuccessAt: { type: ["string", "null"], format: date-time }
+        nextRefreshAt: { type: ["string", "null"], format: date-time }
+        timezone: { type: string, enum: [America/Toronto] }
+        refreshHour: { type: integer, enum: [8] }
+        error: { type: ["string", "null"] }
+        sourceUrl: { type: string, format: uri }
+        totalPlayers: { type: integer }
+        confirmedInjured: { type: integer }
+        unknownPlayers: { type: integer }
+        sourceReports: { type: integer }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/PoolPlayerInjury" }
+      required: [status, lastCheckedAt, lastSuccessAt, nextRefreshAt, timezone, refreshHour, error, sourceUrl, totalPlayers, confirmedInjured, unknownPlayers, sourceReports, players]
+    PoolStanding:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        rank: { type: ["integer", "null"] }
+        previousRank: { type: ["integer", "null"] }
+        rankMovement: { type: ["integer", "null"] }
+        seasonPoints: { type: ["number", "null"] }
+        yesterdayPoints: { type: ["number", "null"] }
+        livePoints: { type: ["number", "null"] }
+        todayScorers:
+          description: Verified ownership-adjusted scoring for the current pool day, supplied in the same snapshot as livePoints. Omitted when current-day evidence is unavailable or a historical date is selected.
+          type: array
+          items: { $ref: "#/components/schemas/DailyScoringRow" }
+        yesterdayScorers:
+          description: Verified ownership-adjusted scoring for the prior pool day, supplied in the same snapshot as yesterdayPoints. Omitted when prior-day evidence or its numeric total is unavailable.
+          type: array
+          items: { $ref: "#/components/schemas/DailyScoringRow" }
+        playing: { type: ["integer", "null"] }
+        gamesPlayed: { type: ["integer", "null"] }
+        pointsPerGame: { type: ["number", "null"] }
+        transactionsUsed: { type: ["integer", "null"] }
+        rosterComplete: { type: boolean }
+      required: [id, name, rank, previousRank, rankMovement, seasonPoints, yesterdayPoints, livePoints, playing, gamesPlayed, pointsPerGame, transactionsUsed, rosterComplete]
+    PlayerStats:
+      type: object
+      properties:
+        gamesPlayed: { type: integer }
+        goals: { type: integer }
+        assists: { type: integer }
+        powerPlayGoals: { type: integer }
+        shortHandedGoals: { type: integer }
+        overtimeGoals: { type: integer }
+        hatTricks: { type: integer }
+        poolPoints: { type: number }
+        lastGamePoints: { type: number }
+      required: [gamesPlayed, goals, assists, powerPlayGoals, shortHandedGoals, overtimeGoals, hatTricks, poolPoints, lastGamePoints]
+    PlayerSummary:
+      allOf:
+        - $ref: "#/components/schemas/PlayerStats"
+        - type: object
+          properties:
+            id: { type: string }
+            nhlPlayerId: { type: ["string", "null"] }
+            name: { type: string }
+            position: { type: string }
+            team: { type: ["string", "null"] }
+            injuryStatus: { type: ["string", "null"] }
+            ownerId: { type: ["string", "null"] }
+            ownerName: { type: ["string", "null"] }
+            active: { type: boolean }
+            lastGameDate: { type: ["string", "null"], format: date }
+          required: [id, nhlPlayerId, name, position, team, injuryStatus, ownerId, ownerName, active, lastGameDate]
+    GameLogEntry:
+      allOf:
+        - $ref: "#/components/schemas/PlayerStats"
+        - type: object
+          properties:
+            gameId: { type: string }
+            date: { type: string, format: date }
+            opponent: { type: string }
+            result: { type: ["string", "null"] }
+            scoringBreakdown:
+              type: array
+              items: { $ref: "#/components/schemas/ScoreReason" }
+          required: [gameId, date, opponent, scoringBreakdown]
+    ScoreReason:
+      type: object
+      properties:
+        label: { type: string }
+        count: { type: integer }
+        points: { type: number }
+        note: { type: ["string", "null"] }
+      required: [label, count, points, note]
+    PlayerProfile:
+      allOf:
+        - $ref: "#/components/schemas/PlayerSummary"
+        - type: object
+          properties:
+            age: { type: ["integer", "null"] }
+            headshotUrl: { type: ["string", "null"] }
+            currentOwnerId: { type: ["string", "null"] }
+            currentOwnerName: { type: ["string", "null"] }
+            transactionHistory:
+              type: array
+              items: { $ref: "#/components/schemas/Transaction" }
+            gameLog:
+              type: array
+              items: { $ref: "#/components/schemas/GameLogEntry" }
+          required: [age, headshotUrl, currentOwnerId, currentOwnerName, transactionHistory, gameLog]
+    RosterAsset:
+      allOf:
+        - $ref: "#/components/schemas/PlayerSummary"
+        - type: object
+          properties:
+            assetType: { type: string, enum: [skater, goalieTeam] }
+            droppedAt: { type: ["string", "null"], format: date-time }
+            acquiredAt: { type: ["string", "null"], format: date-time }
+            wins: { type: integer }
+            shutoutWins: { type: integer }
+            goalieAssists: { type: integer }
+            goalieGoals: { type: integer }
+          required: [assetType, droppedAt, acquiredAt, wins, shutoutWins, goalieAssists, goalieGoals]
+    OwnerDetail:
+      type: object
+      properties:
+        owner: { $ref: "#/components/schemas/OwnerStanding" }
+        skaters:
+          type: array
+          items: { $ref: "#/components/schemas/RosterAsset" }
+        goalieTeams:
+          type: array
+          items: { $ref: "#/components/schemas/RosterAsset" }
+      required: [owner, skaters, goalieTeams]
+    GameSummary:
+      type: object
+      properties:
+        gameId: { type: string }
+        awayTeam: { type: string }
+        homeTeam: { type: string }
+        status: { type: string }
+        startTime: { type: ["string", "null"], format: date-time }
+        poolPlayers: { type: array, items: { type: string } }
+      required: [gameId, awayTeam, homeTeam, status, startTime, poolPlayers]
+    Dashboard:
+      type: object
+      properties:
+        poolTitle: { type: string }
+        seasonLabel: { type: string }
+        seasonPhase: { type: string, enum: [preseason, regularSeason, offseason, unavailable] }
+        dataUpdatedAt: { type: ["string", "null"], format: date-time }
+        live: { type: boolean }
+        standings:
+          type: array
+          items: { $ref: "#/components/schemas/OwnerStanding" }
+        games:
+          type: array
+          items: { $ref: "#/components/schemas/GameSummary" }
+        yesterdayLeaders:
+          type: array
+          items: { $ref: "#/components/schemas/OwnerStanding" }
+        injuries:
+          type: array
+          items: { $ref: "#/components/schemas/PlayerSummary" }
+        recentTransactions:
+          type: array
+          items: { $ref: "#/components/schemas/Transaction" }
+        unresolvedSelections: { type: integer }
+      required: [poolTitle, seasonLabel, seasonPhase, dataUpdatedAt, live, standings, games, yesterdayLeaders, injuries, recentTransactions, unresolvedSelections]
+    TransactionAccess:
+      type: object
+      required: [authenticated, admin, ownerId, owners, reason]
+      properties:
+        authenticated: { type: boolean }
+        admin: { type: boolean }
+        ownerId: { type: ["string", "null"] }
+        reason: { type: ["string", "null"] }
+        owners:
+          type: array
+          items:
+            type: object
+            required: [ownerId, ownerName, skaters]
+            properties:
+              ownerId: { type: string }
+              ownerName: { type: string }
+              skaters:
+                type: array
+                items:
+                  type: object
+                  required: [playerId, name]
+                  properties:
+                    playerId: { type: string }
+                    name: { type: string }
+    TransactionParticipant:
+      type: object
+      properties:
+        ownerId: { type: string }
+        ownerName: { type: string }
+        dropsUsed: { type: integer }
+        dropsLeft: { type: integer }
+        amountOwing: { type: ["number", "null"] }
+        transactionSpend: { type: number }
+      required: [ownerId, ownerName, dropsUsed, dropsLeft, amountOwing, transactionSpend]
+    TransactionSummary:
+      type: object
+      properties:
+        baseEarnings: { type: number }
+        totalPoolEarnings: { type: number }
+        totalCompletedTransactions: { type: integer }
+        transactionCost: { type: number }
+        maxDrops: { type: integer }
+        payouts:
+          type: array
+          items: { $ref: "#/components/schemas/TransactionPayout" }
+        recordingEnabled: { type: boolean }
+        recordingReason: { type: ["string", "null"] }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/TransactionParticipant" }
+      required: [baseEarnings, totalPoolEarnings, totalCompletedTransactions, transactionCost, maxDrops, payouts, recordingEnabled, recordingReason, participants]
+    TransactionPayout:
+      type: object
+      properties:
+        place: { type: integer, enum: [1, 2, 3] }
+        percentage: { type: integer }
+        amount: { type: number }
+        twoWayTieAmount: { type: number }
+      required: [place, percentage, amount, twoWayTieAmount]
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        ownerId: { type: string }
+        ownerName: { type: string }
+        outgoingPlayerId: { type: ["string", "null"] }
+        outgoingPlayerName: { type: ["string", "null"] }
+        incomingPlayerId: { type: ["string", "null"] }
+        incomingPlayerName: { type: ["string", "null"] }
+        effectiveAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: ["string", "null"] }
+        reversedAt: { type: ["string", "null"], format: date-time }
+        paid: { type: boolean }
+        details: { type: ["object", "null"], additionalProperties: true }
+        transactionNumber: { type: ["integer", "null"] }
+      required: [id, ownerId, ownerName, outgoingPlayerId, outgoingPlayerName, incomingPlayerId, incomingPlayerName, effectiveAt, createdAt, createdBy, reversedAt, paid]
+    TransactionPaymentUpdate:
+      type: object
+      properties:
+        paid: { type: boolean }
+      required: [paid]
+    TransactionInput:
+      type: object
+      properties:
+        ownerId: { type: string }
+        outgoingPlayerId: { type: string }
+        incomingPlayerId: { type: string }
+        acknowledged: { type: boolean }
+        eligibilityToken: { type: string }
+      required: [ownerId, outgoingPlayerId, incomingPlayerId]
+    PoolManagementInput:
+      type: object
+      properties:
+        action: { type: string, enum: [account, invitation, allowance, reverse, roster, eligibility] }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+        requestId: { type: string, minLength: 8, maxLength: 100 }
+        details: { type: object, additionalProperties: true }
+      required: [action, reason, requestId, details]
+    TransactionPreview:
+      type: object
+      properties:
+        ownerId: { type: string }
+        outgoing: { type: object, additionalProperties: true }
+        incoming: { type: object, additionalProperties: true }
+        fee: { type: number }
+        dropsUsedAfter: { type: integer }
+        dropsLeftAfter: { type: integer }
+        serverTime: { type: string, format: date-time }
+        eligibilityToken: { type: string }
+        games:
+          type: array
+          items:
+            type: object
+            properties:
+              gameId: { type: integer }
+              gameDate: { type: string }
+              matchup: { type: string }
+              scheduledStart: { type: ["string", "null"], format: date-time }
+              cutoff: { type: ["string", "null"], format: date-time }
+              eligible: { type: ["boolean", "null"] }
+            required: [gameId, gameDate, matchup, scheduledStart, cutoff, eligible]
+        pendingVerification: { type: boolean }
+      required: [ownerId, outgoing, incoming, fee, dropsUsedAfter, dropsLeftAfter, serverTime, eligibilityToken, games, pendingVerification]
+    ScoringRules:
+      type: object
+      properties:
+        goal: { type: number }
+        assist: { type: number }
+        powerPlayGoal: { type: number }
+        shortHandedGoal: { type: number }
+        overtimeGoal: { type: number }
+        forwardHatTrick: { type: number }
+        defensemanHatTrick: { type: number }
+        goalieTeamWin: { type: number }
+        goalieTeamShutoutWin: { type: number }
+        goalieAssist: { type: number }
+        goalieGoal: { type: number }
+        powerPlayBonusOnOvertime: { type: boolean }
+        powerPlayBonusOnHatTrick: { type: boolean }
+        revision: { type: integer }
+        effectiveFrom: { type: string, format: date-time }
+      required: [goal, assist, powerPlayGoal, shortHandedGoal, overtimeGoal, forwardHatTrick, defensemanHatTrick, goalieTeamWin, goalieTeamShutoutWin, goalieAssist, goalieGoal, powerPlayBonusOnOvertime, powerPlayBonusOnHatTrick, revision, effectiveFrom]
+    ScoringRulesUpdate:
+      type: object
+      additionalProperties: false
+      description: Recalculates season scoring for active players; recorded dropped-player credits and ownership cutoffs remain fixed. Forward-only rule changes are not supported.
+      properties:
+        goal: { type: number, minimum: 0, maximum: 1000 }
+        assist: { type: number, minimum: 0, maximum: 1000 }
+        powerPlayGoal: { type: number, minimum: 0, maximum: 1000 }
+        shortHandedGoal: { type: number, minimum: 0, maximum: 1000 }
+        overtimeGoal: { type: number, minimum: 0, maximum: 1000 }
+        forwardHatTrick: { type: number, minimum: 0, maximum: 1000 }
+        defensemanHatTrick: { type: number, minimum: 0, maximum: 1000 }
+        goalieTeamWin: { type: number, minimum: 0, maximum: 1000 }
+        goalieTeamShutoutWin: { type: number, minimum: 0, maximum: 1000 }
+        goalieAssist: { type: number, minimum: 0, maximum: 1000 }
+        goalieGoal: { type: number, minimum: 0, maximum: 1000 }
+        powerPlayBonusOnOvertime: { type: boolean }
+        powerPlayBonusOnHatTrick: { type: boolean }
+        expectedRevision: { type: integer, minimum: 1 }
+        applyMode: { type: string, enum: [historical] }
+      required: [goal, assist, powerPlayGoal, shortHandedGoal, overtimeGoal, forwardHatTrick, defensemanHatTrick, goalieTeamWin, goalieTeamShutoutWin, goalieAssist, goalieGoal, powerPlayBonusOnOvertime, powerPlayBonusOnHatTrick, expectedRevision, applyMode]
+    ImportSelection:
+      type: object
+      properties:
+        id: { type: string }
+        ownerId: { type: string }
+        ownerName: { type: string }
+        round: { type: ["integer", "null"] }
+        originalText: { type: string }
+        matchedPlayerId: { type: ["string", "null"] }
+        matchedName: { type: ["string", "null"] }
+        position: { type: ["string", "null"] }
+        team: { type: ["string", "null"] }
+        nhlPlayerId: { type: ["string", "null"] }
+        confidence: { type: string, enum: [verified, needsConfirmation, unresolved] }
+        source: { type: string, enum: [confirmedRoster, draftBoard] }
+      required: [id, ownerId, ownerName, round, originalText, matchedPlayerId, matchedName, position, team, nhlPlayerId, confidence, source]
+    ImportSelectionUpdate:
+      type: object
+      properties:
+        matchedPlayerId: { type: string }
+        matchedName: { type: string }
+        position: { type: string }
+        team: { type: string }
+        nhlPlayerId: { type: string }
+        confirm: { type: boolean }
+      required: [matchedPlayerId, matchedName, position, team, nhlPlayerId, confirm]
+    DraftRosterSelection:
+      type: object
+      properties:
+        round: { type: integer }
+        originalText: { type: string }
+        assetType: { type: string, enum: [skater, goalieTeam] }
+        position: { type: string, enum: [F, D, G] }
+        reviewNote: { type: ["string", "null"] }
+        confirmedName: { type: ["string", "null"] }
+        confirmedTeam: { type: ["string", "null"] }
+        confirmedLastName: { type: ["string", "null"] }
+        nhlPlayerId: { type: ["integer", "null"] }
+        identityCheckedAt: { type: ["string", "null"], format: date-time }
+        identitySource: { type: ["string", "null"] }
+        acquiredAt: { type: ["string", "null"], format: date-time, description: Actual pickup instant; this player earns participant points only after pickup. }
+        droppedAt: { type: ["string", "null"], format: date-time, description: Actual drop instant; historical points remain frozen and the player is no longer owned. }
+        goalies:
+          type: array
+          description: Individual goalies confirmed from uploaded photos or the approved official NHL roster snapshot for this original draft slot. Club entries are provenance only and do not score.
+          items: { $ref: "#/components/schemas/PhotoConfirmedGoalie" }
+        goalieNamesPending:
+          type: boolean
+          description: True when this goalie slot has no confirmed individual names. Missing goalie points are unknown, not zero.
+        identityCandidates:
+          type: array
+          items:
+            type: object
+            properties:
+              nhlPlayerId: { type: integer }
+              name: { type: string }
+              team: { type: string }
+              position: { type: string, enum: [F, D] }
+            required: [nhlPlayerId, name, team, position]
+      required: [round, originalText, assetType, position, reviewNote]
+    PhotoConfirmedGoalie:
+      type: object
+      properties:
+        nhlPlayerId: { type: integer }
+        confirmedName: { type: string }
+        confirmedTeam: { type: string }
+        identitySource: { type: string }
+      required: [nhlPlayerId, confirmedName, confirmedTeam, identitySource]
+    DraftRoster:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        selections:
+          type: array
+          items: { $ref: "#/components/schemas/DraftRosterSelection" }
+      required: [id, name, selections]
+    DailyScoringRow:
+      type: object
+      properties:
+        ownerId: { type: string }
+        ownerName: { type: string }
+        playerId: { type: string }
+        playerName: { type: string }
+        team: { type: string }
+        goals: { type: integer }
+        assists: { type: integer }
+        powerPlayGoals: { type: integer }
+        shortHandedGoals: { type: integer }
+        overtimeGoals: { type: integer }
+        hatTrick: { type: boolean }
+        poolPoints: { type: number }
+        scoringBreakdown:
+          type: array
+          items: { $ref: "#/components/schemas/ScoreReason" }
+      required: [ownerId, ownerName, playerId, playerName, team, goals, assists, powerPlayGoals, shortHandedGoals, overtimeGoals, hatTrick, poolPoints, scoringBreakdown]
+    OwnerAnalysis:
+      type: object
+      properties:
+        ownerId: { type: string }
+        ownerName: { type: string }
+        dailyPoints: { type: number }
+        seasonPoints: { type: number }
+        rank: { type: integer }
+        previousRank: { type: ["integer", "null"] }
+        narrative: { type: string }
+        scoring:
+          type: array
+          items: { $ref: "#/components/schemas/DailyScoringRow" }
+      required: [ownerId, ownerName, dailyPoints, seasonPoints, rank, previousRank, narrative, scoring]
+    DailyAnalysis:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        status: { type: string, enum: [final, pending, unavailable] }
+        summary: { type: string }
+        owners:
+          type: array
+          items: { $ref: "#/components/schemas/OwnerAnalysis" }
+        scoring: { type: array, items: { $ref: "#/components/schemas/DailyScoringRow" } }
+      required: [date, status, summary, owners, scoring]
+    DailyReportHealth:
+      type: object
+      required: [reportDate, status, publicationVerified, graceMinutes, lastAttemptAt, lastPublishedAt, failureCategory, observedSince]
+      properties:
+        reportDate: { type: string }
+        status: { type: string, enum: [scheduled, pending, delayed, published] }
+        publicationVerified:
+          type: boolean
+          description: False when the database cannot confirm today's publication status
+        graceMinutes: { type: integer }
+        lastAttemptAt:
+          type: ["string", "null"]
+          description: Latest publication attempt observed by this server process
+        lastPublishedAt:
+          type: ["string", "null"]
+          description: Last confirmed successful publication, null if not yet known
+        failureCategory:
+          type: ["string", "null"]
+          enum: [database_unavailable, scoring_not_verified, report_generation_failed, publication_failed, unknown, null]
+        observedSince:
+          type: string
+          description: Server observation start; attempt history resets on restart
+    DailyReportOwner:
+      allOf:
+        - { $ref: "#/components/schemas/OwnerAnalysis" }
+        - type: object
+          properties:
+            gapFromFirst: { type: number }
+            movement: { type: ["integer", "null"] }
+            tied: { type: boolean }
+            activePlayers: { type: ["integer", "null"] }
+          required: [gapFromFirst, movement, tied, activePlayers]
+    DailyReportSeasonLeader:
+      type: object
+      properties:
+        playerId: { type: string }
+        playerName: { type: string }
+        ownerName: { type: string }
+        team: { type: string }
+        poolPoints: { type: number }
+      required: [playerId, playerName, ownerName, team, poolPoints]
+    DailyReportRace:
+      type: object
+      properties:
+        participants: { type: array, items: { type: string } }
+        gap: { type: number }
+      required: [participants, gap]
+    DailyReport:
+      type: object
+      properties:
+        reportDate: { type: string }
+        gamesThroughDate: { type: string }
+        dataUpdatedAt: { type: string }
+        publishedAt: { type: string }
+        corrected: { type: boolean }
+        summary: { type: string }
+        raceNarrative: { type: string }
+        owners: { type: array, items: { $ref: "#/components/schemas/DailyReportOwner" } }
+        playersOfNight: { type: array, items: { $ref: "#/components/schemas/DailyScoringRow" } }
+        participantsOfNight: { type: array, items: { type: string } }
+        dailyLeaders: { type: array, items: { $ref: "#/components/schemas/DailyScoringRow" } }
+        seasonLeaders: { type: array, items: { $ref: "#/components/schemas/DailyReportSeasonLeader" } }
+        closestRaces: { type: array, items: { $ref: "#/components/schemas/DailyReportRace" } }
+        topThreeGap: { type: ["number", "null"] }
+        topFiveGap: { type: ["number", "null"] }
+      required: [reportDate, gamesThroughDate, dataUpdatedAt, publishedAt, corrected, summary, raceNarrative, owners, playersOfNight, participantsOfNight, dailyLeaders, seasonLeaders, closestRaces, topThreeGap, topFiveGap]
+    DailyReportResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [published, pending, unavailable] }
+        message: { type: string }
+        report:
+          anyOf:
+            - { $ref: "#/components/schemas/DailyReport" }
+            - { type: "null" }
+      required: [status, message, report]
+    DailyReportHistoryItem:
+      type: object
+      properties:
+        reportDate: { type: string }
+        gamesThroughDate: { type: string }
+        publishedAt: { type: string }
+        corrected: { type: boolean }
+      required: [reportDate, gamesThroughDate, publishedAt, corrected]
+    ShareInput:
+      type: object
+      properties:
+        view: { type: string, enum: [standings, analysis, roster, previousDay] }
+        date: { type: ["string", "null"], format: date }
+        ownerId: { type: ["string", "null"] }
+      required: [view, date, ownerId]
+    ShareLink:
+      type: object
+      properties:
+        shareId: { type: string }
+        publicUrl: { type: string }
+      required: [shareId, publicUrl]
+    PublicShare:
+      type: object
+      properties:
+        view: { type: string, enum: [standings, analysis, roster, previousDay] }
+        date: { type: ["string", "null"], format: date }
+        title: { type: string }
+        standings:
+          type: array
+          items: { $ref: "#/components/schemas/OwnerStanding" }
+        analysis: { $ref: "#/components/schemas/DailyAnalysis" }
+        roster: { $ref: "#/components/schemas/OwnerDetail" }
+      required: [view, date, title, standings, analysis, roster]
+    NhlSourceSnapshot:
+      type: object
+      properties:
+        provider: { type: string }
+        sourceUrl: { type: string, format: uri }
+        season: { type: integer }
+        refreshIntervalSeconds: { type: integer, enum: [300] }
+        status: { type: string, enum: [starting, available, stale, unavailable] }
+        isRefreshing: { type: boolean }
+        lastAttemptAt: { type: ["string", "null"], format: date-time }
+        lastSuccessAt: { type: ["string", "null"], format: date-time }
+        nextRefreshAt: { type: ["string", "null"], format: date-time }
+        error: { type: ["string", "null"] }
+        today:
+          anyOf:
+            - $ref: "#/components/schemas/NhlDayFeed"
+            - type: "null"
+        lastNight:
+          anyOf:
+            - $ref: "#/components/schemas/NhlDayFeed"
+            - type: "null"
+      required: [provider, sourceUrl, season, refreshIntervalSeconds, status, isRefreshing, lastAttemptAt, lastSuccessAt, nextRefreshAt, error, today, lastNight]
+    NhlDayFeed:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        games: { type: array, items: { $ref: "#/components/schemas/NhlSourceGame" } }
+      required: [date, games]
+    NhlSourceGame:
+      type: object
+      properties:
+        id: { type: integer }
+        season: { type: integer }
+        gameType: { type: integer }
+        gameDate: { type: string, format: date }
+        gameState: { type: string }
+        startTimeUTC: { type: ["string", "null"], format: date-time }
+        awayAbbrev: { type: string }
+        awayName: { type: string }
+        awayScore: { type: ["integer", "null"] }
+        homeAbbrev: { type: string }
+        homeName: { type: string }
+        homeScore: { type: ["integer", "null"] }
+        poolEligible: { type: boolean }
+      required: [id, season, gameType, gameDate, gameState, startTimeUTC, awayAbbrev, awayName, awayScore, homeAbbrev, homeName, homeScore, poolEligible]
+    AdminAccess:
+      type: object
+      properties:
+        authenticated: { type: boolean }
+        authorized: { type: boolean }
+        email: { type: ["string", "null"] }
+      required: [authenticated, authorized, email]
+    AdminParticipantEmail:
+      type: object
+      properties:
+        ownerId: { type: string }
+        ownerName: { type: string }
+        email: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
+      required: [ownerId, ownerName, email, isAdmin]
+    ParticipantAccess:
+      type: object
+      properties:
+        authenticated: { type: boolean }
+        authorized: { type: boolean }
+        ownerId: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
+      required: [authenticated, authorized, ownerId, isAdmin]
