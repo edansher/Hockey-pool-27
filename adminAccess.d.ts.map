@@ -1,1 +1,0 @@
-{"version":3,"file":"adminAccess.d.ts","sourceRoot":"","sources":["../../../src/generated/types/adminAccess.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,WAAW;IAC1B,aAAa,EAAE,OAAO,CAAC;IACvB,UAAU,EAAE,OAAO,CAAC;IACpB,gBAAgB;IAChB,KAAK,EAAE,MAAM,GAAG,IAAI,CAAC;CACtB"}

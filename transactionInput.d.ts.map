@@ -1,1 +1,0 @@
-{"version":3,"file":"transactionInput.d.ts","sourceRoot":"","sources":["../../../src/generated/types/transactionInput.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,gBAAgB;IAC/B,OAAO,EAAE,MAAM,CAAC;IAChB,gBAAgB,EAAE,MAAM,CAAC;IACzB,gBAAgB,EAAE,MAAM,CAAC;IACzB,YAAY,CAAC,EAAE,OAAO,CAAC;IACvB,gBAAgB,CAAC,EAAE,MAAM,CAAC;CAC3B"}

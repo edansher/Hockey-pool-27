@@ -1,1 +1,0 @@
-{"version":3,"file":"transaction-chime.d.ts","sourceRoot":"","sources":["../src/transaction-chime.ts"],"names":[],"mappings":"AAEA,6EAA6E;AAC7E,wBAAgB,qBAAqB,CAAC,OAAO,EAAE;IAC7C,eAAe,EAAE,MAAM,CAAC;IACxB,OAAO,EAAE,MAAM,IAAI,CAAC;IACpB,SAAS,EAAE,MAAM,IAAI,CAAC;IACtB,MAAM,EAAE,MAAM,IAAI,CAAC;CACpB,GAAG,MAAM,IAAI,CA2Db"}

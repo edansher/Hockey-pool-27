@@ -1,1 +1,0 @@
-{"version":3,"file":"transactionPayout.d.ts","sourceRoot":"","sources":["../../../src/generated/types/transactionPayout.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,sBAAsB,EAAE,MAAM,0BAA0B,CAAC;AAEvE,MAAM,WAAW,iBAAiB;IAChC,KAAK,EAAE,sBAAsB,CAAC;IAC9B,UAAU,EAAE,MAAM,CAAC;IACnB,MAAM,EAAE,MAAM,CAAC;IACf,eAAe,EAAE,MAAM,CAAC;CACzB"}
